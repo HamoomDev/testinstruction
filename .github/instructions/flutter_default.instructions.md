@@ -42,16 +42,122 @@ UI (Page/Widget)
 - Feature Bindings: `features/<feature>/presentation/bindings/`
 - Routes: `app/routes/app_routes.dart`  
 
+## 🔄 GetX Dependency Injection Best Practices
+
+### 📋 Services vs Controllers Registration
+
+**Services** (ใช้ทันทีและต้องพร้อมใช้งาน):
+```dart
+// ✅ สำหรับ Services ที่ถูกเรียกใช้ทันทีใน UI
+Get.put<ThemeService>(ThemeService(), permanent: true);
+Get.put<LocaleService>(LocaleService(), permanent: true);
+Get.put<AuthSessionService>(AuthSessionService(), permanent: true);
+```
+
+**Controllers** (สร้างเมื่อใช้งาน):
+```dart
+// ✅ สำหรับ Controllers ใช้ lazyPut กับ fenix
+Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
+Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
+Get.lazyPut<SplashController>(() => SplashController(), fenix: true);
+```
+
+### 🎯 การเลือกใช้ put vs lazyPut
+
+**ใช้ `Get.put(permanent: true)` เมื่อ:**
+- Service ถูกเรียกใช้ทันทีใน `build()` method
+- ต้องการให้ service พร้อมใช้งานตลอดเวลา
+- เป็น singleton service (theme, auth, storage)
+
+**ใช้ `Get.lazyPut(fenix: true)` เมื่อ:**
+- Controller ที่ใช้งานเฉพาะหน้าจอ
+- ต้องการ lazy loading เพื่อประหยัด memory
+- `fenix: true` ทำให้สามารถสร้างใหม่ได้เมื่อถูกลบ
+
+### ⚠️ ข้อควรระวัง GetView
+
+**ใน GetView ต้องเรียก controller เพื่อให้ lazyPut ทำงาน:**
+```dart
+class MyPage extends GetView<MyController> {
+  @override
+  Widget build(BuildContext context) {
+    // ✅ เรียก controller เพื่อ trigger lazy loading
+    controller; 
+    
+    return Scaffold(...);
+  }
+}
+```
+
+**หรือเรียกใช้ในส่วนที่เหมาะสม:**
+```dart
+// ✅ เรียก Get.find() เมื่อต้องการใช้งานจริง
+onPressed: () {
+  final service = Get.find<ThemeService>();
+  service.toggleTheme();
+}
+```
+
 ## ⚙️ Environment & i18n
 
 **Environment Config**: 
 ```bash
-flutter run --dart-define=ENV=dev/stg/prod
+cd /path/to/project && flutter run --dart-define=ENV=dev/stg/prod
 ```
 
 **Internationalization**:
 - ใช้ `flutter_i18n` กับไฟล์ `assets/i18n/{en,th}.yaml`
 - เรียกใช้: `FlutterI18n.translate(context, "key")`
+
+## 📱 Flutter Commands Best Practices
+
+### ⚠️ **CRITICAL**: รัน Flutter Commands ด้วย cd เสมอ
+
+**ใช้ absolute path กับ cd:**
+```bash
+# ✅ รันแบบนี้เสมอ
+cd /path/to/project && flutter run -d macos
+cd /path/to/project && flutter build web --release
+cd /path/to/project && flutter analyze
+
+# ❌ อย่ารันแบบนี้
+flutter run -d macos  # จะ error: No pubspec.yaml found
+```
+
+**Platform Commands:**
+```bash
+# iOS Simulator (แนะนำสำหรับ debug)
+cd /path/to/project && flutter run -d "iPhone 16 Pro Max"
+
+# Android
+cd /path/to/project && flutter run -d "android"
+
+# macOS Desktop
+cd /path/to/project && flutter run -d "macos"
+
+# Web Release (เฉพาะ production testing)
+cd /path/to/project && flutter run -d chrome --release --web-renderer html
+```
+
+**Development Commands:**
+```bash
+# Analyze code
+cd /path/to/project && flutter analyze
+
+# Run tests
+cd /path/to/project && flutter test
+
+# Check devices
+cd /path/to/project && flutter devices
+
+# Clean build
+cd /path/to/project && flutter clean && flutter pub get
+```
+
+### 🔍 **ทำไมต้องใช้ cd:**
+- Flutter ต้องหา `pubspec.yaml` ใน current directory
+- Command จะ error ถ้าไม่อยู่ใน Flutter project root
+- ป้องกันปัญหา "No pubspec.yaml file found"
 
 ## 🧪 Testing Strategy
 
@@ -94,11 +200,20 @@ flutter run --dart-define=ENV=dev/stg/prod
 - Import แบบ package: `import 'package:app_name/...'`
 - แยก cross-feature services ไว้ `core/services/`
 - Test mirror source structure
+- ใช้ `Get.put(permanent: true)` สำหรับ services ที่เรียกใช้ทันที
+- ใช้ `Get.lazyPut(fenix: true)` สำหรับ controllers
+- เรียก `controller` ใน GetView build method เพื่อ trigger lazy loading
+- รัน Flutter commands ด้วย `cd /path/to/project && flutter command` เสมอ
 
 **❌ Don't:**
 - ห้าม DTO หลุดเข้า domain/presentation → map ผ่าน mappers/
 - Controller ห้ามเรียก datasource ตรง → ผ่าน repository/usecase
 - ห้ามใช้ `withOpacity` → ใช้ `withValues`
+- อย่าใช้ `Get.put()` สำหรับ controllers (ใช้ lazyPut)
+- อย่าใช้ `Get.lazyPut()` สำหรับ services ที่เรียกใช้ทันทีใน UI
+- อย่ารัน `flutter run` โดยไม่ cd เข้า project directory ก่อน
+- อย่าใช้ `Get.put()` สำหรับ controllers (ใช้ lazyPut)
+- อย่าใช้ `Get.lazyPut()` สำหรับ services ที่เรียกใช้ทันทีใน UI
 
 ## 🖼️ Wireframe Screen Mapping (SC-XX/WG-XX)
 
@@ -138,12 +253,16 @@ dependencies:
         - DeeplinkService: รองรับการเปิดแอพผ่านลิงก์ (เช่น เปิดหน้าสินค้า, เปิดหน้าชำระเงิน)
         <!-- - AnalyticsService: ส่ง event ไปยัง Google Analytics, Firebase Analytics, หรือ Amplitude -->
 - Test โครงสร้าง mirror source → test/features/<feature>/...
+- GetX DI: ใช้ `Get.put(permanent: true)` สำหรับ services, `Get.lazyPut(fenix: true)` สำหรับ controllers
+- เรียก `controller` ใน GetView เพื่อ trigger lazy loading
 
 
 ### ❌ Don't
 - ห้าม DTO หลุดเข้า domain/presentation → map ผ่าน mappers/ เสมอ
 - Controller ห้ามเรียก datasource ตรง → ผ่าน repository/usecase เท่านั้น
 - ห้ามใช้ withOpacity สำหรับทำโปรงใสสี ให้ใช้ withValues
+- อย่าใช้ `Get.put()` สำหรับ controllers → ใช้ `Get.lazyPut(fenix: true)`
+- อย่าใช้ `Get.lazyPut()` สำหรับ services ที่เรียกใช้ทันที → ใช้ `Get.put(permanent: true)`
 
 
 
