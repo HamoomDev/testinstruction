@@ -1,0 +1,34 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+*.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Environment
+.env
+
+# IDEss
+.idea/
+.vscode/
+*.iml
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Generated.xcconfig
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Testing
+coverage/
